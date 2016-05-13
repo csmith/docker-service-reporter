@@ -15,6 +15,17 @@ def etcd_put(client, prefix, obj):
       client.write(new_prefix, str(value))
 
 
+def get_addresses(container):
+  return {k: v['IPAddress'] for k, v in container['NetworkSettings']['Networks'].items()}
+
+
+def get_ports(container):
+  ports = defaultdict(dict)
+  for port in container['Ports']:
+    ports[port['Type']][port['PrivatePort']] = port['PublicPort'] if 'PublicPort' in port else 0
+  return ports
+
+
 docker_client = docker.Client(base_url='unix://var/run/docker.sock')
 etcd_client = etcd.Client(host='etcd', port=4001)
 prefix = '/docker'
@@ -24,30 +35,19 @@ label_index = defaultdict(dict)
 network_index = defaultdict(dict)
 
 for container in docker_client.containers():
-  name = container['Names'][0][1:]
-  image = container['Image']
-  labels = container['Labels']
-  addrs = {}
-  ports = defaultdict(dict)
-
-  for net_name, net_config in container['NetworkSettings']['Networks'].items():
-    addrs[net_name] = net_config['IPAddress']
-
-  for port in container['Ports']:
-    ports[port['Type']][port['PrivatePort']] = port['PublicPort'] if 'PublicPort' in port else 0
-
-  containers[name] = {
-    'image': image,
-    'labels': labels,
+  containers[container['Names'][0][1:]] = {
+    'image': container['Image'],
+    'labels': container['Labels'],
     'net': {
-      'addr': addrs,
-      'ports': ports
+      'addr': get_addresses(container),
+      'ports': get_ports(container)
     }
   }
 
-  for k, v in labels.items():
+for name, details in containers.items():
+  for k, v in details['labels'].items():
     label_index[k][name] = v
-  for k, v in addrs.items():
+  for k, v in details['net']['addr'].items():
     network_index[k][name] = v
 
 try:
