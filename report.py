@@ -29,9 +29,10 @@ def get_ports(container):
 
 
 def add_containers(infos):
-  global containers, label_index, network_index
+  global containers, host_index, label_index, network_index
   for info in infos:
     container = {
+      'host': host,
       'image': info['Image'],
       'labels': info['Labels'],
       'net': {
@@ -48,6 +49,15 @@ def add_containers(infos):
     for k, v in container['net']['addr'].items():
       network_index[k][name] = v
 
+    host_index[host][name] = name
+
+
+def write_all():
+  etcd_put(etcd_client, prefix + '/containers', containers)
+  etcd_put(etcd_client, prefix + '/labels', label_index)
+  etcd_put(etcd_client, prefix + '/networks', network_index)
+  etcd_put(etcd_client, prefix + '/hosts', host_index)
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name', help='Name of this docker host', default='unknown')
@@ -59,12 +69,14 @@ args = parser.parse_args()
 docker_client = docker.Client(base_url='unix://var/run/docker.sock')
 etcd_client = etcd.Client(host=args.etcd_host, port=args.etcd_port)
 prefix = args.etcd_prefix
+host = args.name
 
 event_gen = docker_client.events(decode=True, filters={'type': 'container', 'event': ['die', 'start']})
 
 containers = {}
 label_index = defaultdict(dict) 
 network_index = defaultdict(dict)
+host_index = defaultdict(dict)
 
 add_containers(docker_client.containers())
 
@@ -73,14 +85,13 @@ try:
 except etcd.EtcdKeyNotFound:
   pass
 
-etcd_put(etcd_client, prefix + '/containers', containers)
-etcd_put(etcd_client, prefix + '/labels', label_index)
-etcd_put(etcd_client, prefix + '/networks', network_index)
+write_all()
 
 for event in event_gen:
   if event['Action'] == 'start':
     print('New container %s' % event['id'])
     add_containers(docker_client.containers(filters={'id': event['id']}))
+    write_all()
   elif event['Action'] == 'die':
     print('Dead container %s' % event['id'])
   else:

@@ -28,29 +28,35 @@ The following command line arguments are available:
   --etcd-host (default: etcd) hostname where ectd is running
   --etcd-port (default: 2379) port to connect to ectd on
   --etcd-prefix (default: /docker) prefix to write keys to
-  --name (default: docker) name of the host running docker
+  --name (default: unknown) name of the host running docker
 ```
 
 ## Schema
 
-The script stores values relating to containers, labels, and
+The script stores values relating to containers, labels, hosts and
 networks in etcd:
 
 ```
-/docker/containers/{name}/image = "ubuntu:xenial"
-                         /labels/service = "foo"
-                         /labels/org.example.some-label = "bar"
-                         /net/addr/{network1} = "172.1.2.3"
-                                  /{network2} = "172.0.2.3"
-                             /ports/tcp/{container_port1} = {host_port} 
-                                       /{container_port2} = 0 # Not exposed
-                                   /udp/...
+/docker/containers/{name1}/host = "server1.example.com"
+                          /image = "ubuntu:xenial"
+                          /labels/service = "foo"
+                          /labels/org.example.some-label = "bar"
+                          /net/addr/{network1} = "172.1.2.3"
+                                   /{network2} = "172.0.2.3"
+                              /ports/tcp/{container_port1} = {host_port}
+                                        /{container_port2} = 0 # Not exposed
+                                    /udp/...
+                  /{name2}/...
 
-/docker/labels/{label_1}/{container_name_1} = "foo"
+       /hosts/{host_1}/{container_name_1} = {container_name_1}
+                      /...
+             /{host_2}/...
+
+       /labels/{label_1}/{container_name_1} = "foo"
                         /{container_name_2} = "bar"
               /{label_2}/...
 
-/docker/networks/{network1}/{container_name_1} = "172.1.2.3"
+       /networks/{network1}/{container_name_1} = "172.1.2.3"
                            /{container_name_2} = "172.0.2.3"
                 /{network2}/...
 ```
@@ -59,7 +65,7 @@ networks in etcd:
 
 * The docker node is deleted when the script starts, so you can't run multiple
   copies on multiple hosts
-* The script updates once and exits, instead of listening for events
+* Containers that are stopped aren't removed 
 * There's no way to get notified when the script has finished, rather than
   mid-update
 
