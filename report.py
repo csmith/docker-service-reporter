@@ -4,6 +4,17 @@ from collections import defaultdict
 import docker 
 import etcd
 
+
+def etcd_put(client, prefix, obj):
+  for key, value in obj.items():
+    new_prefix = "%s/%s" % (prefix, key)
+
+    if isinstance(value, dict):
+      etcd_put(client, new_prefix, value)
+    else:
+      client.write(new_prefix, str(value))
+
+
 docker_client = docker.Client(base_url='unix://var/run/docker.sock')
 etcd_client = etcd.Client(host='etcd', port=4001)
 prefix = '/docker'
@@ -44,26 +55,9 @@ try:
 except etcd.EtcdKeyNotFound:
   pass
 
-for name, details in containers.items():
-  cprefix = prefix + '/containers/' + name
-  etcd_client.write(cprefix + '/image', details['image'])
-  for k, v in details['labels'].items():
-    etcd_client.write(cprefix + '/labels/' + k, v)
-  for k, v in details['net']['addr'].items():
-    etcd_client.write(cprefix + '/net/addr/' + k, v)
-  for proto, ports in details['net']['ports'].items():
-    for k, v in ports.items():
-      etcd_client.write(cprefix + '/net/ports/' + proto + '/' + str(k), v)
-
-for name, values in label_index.items():
-  lprefix = prefix + '/labels/' + name + '/'
-  for cont, value in values.items():
-    etcd_client.write(lprefix + cont, value)
-
-for name, values in network_index.items():
-  nprefix = prefix + '/networks/' + name + '/'
-  for cont, value in values.items():
-    etcd_client.write(nprefix + cont, value)
+etcd_put(etcd_client, prefix + '/containers', containers)
+etcd_put(etcd_client, prefix + '/labels', label_index)
+etcd_put(etcd_client, prefix + '/networks', network_index)
 
 print(containers)
 print(label_index)
