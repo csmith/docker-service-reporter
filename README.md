@@ -31,6 +31,9 @@ The following command line arguments are available:
   --name (default: unknown) name of the host running docker
 ```
 
+The script will update etcd as soon as it launches, and then
+monitor for docker events and apply the relevant updates.
+
 ## Schema
 
 The script stores values relating to containers, labels, hosts and
@@ -65,7 +68,6 @@ networks in etcd:
 
 * The docker node is deleted when the script starts, so you can't run multiple
   copies on multiple hosts
-* Containers that are stopped aren't removed
 * There's no way to get notified when the script has finished, rather than
   mid-update
 
