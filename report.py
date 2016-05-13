@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 from collections import defaultdict
+import argparse
 import docker 
 import etcd
+import sys
 
 
 def etcd_put(client, prefix, obj):
@@ -26,9 +28,16 @@ def get_ports(container):
   return ports
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--name', help='Name of this docker host', default='unknown')
+parser.add_argument('--etcd-port', type=int, help='Port to connect to etcd on', default=2379)
+parser.add_argument('--etcd-host', help='Host to connect to etcd on', default='etcd')
+parser.add_argument('--etcd-prefix', help='Prefix to use when adding keys to etcd', default='/docker')
+args = parser.parse_args()
+
 docker_client = docker.Client(base_url='unix://var/run/docker.sock')
-etcd_client = etcd.Client(host='etcd', port=4001)
-prefix = '/docker'
+etcd_client = etcd.Client(host=args.etcd_host, port=args.etcd_port)
+prefix = args.etcd_prefix
 
 containers = {}
 label_index = defaultdict(dict) 

@@ -18,7 +18,17 @@ to volume mount the docker socket:
 docker run -d --name service-reporter \
               --restart always \
               -v /var/run/docker.sock:/var/run/docker.sock \ 
-              csmith/service-reporter:latest
+              csmith/service-reporter:latest \
+              --arguments
+```
+
+The following command line arguments are available:
+
+```
+  --etcd-host (default: etcd) hostname where ectd is running
+  --etcd-port (default: 2379) port to connect to ectd on
+  --etcd-prefix (default: /docker) prefix to write keys to
+  --name (default: docker) name of the host running docker
 ```
 
 ## Schema

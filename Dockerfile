@@ -7,4 +7,4 @@ RUN \
     python-etcd
 
 COPY report.py /report.py
-CMD /report.py
+ENTRYPOINT ["python", "/report.py"]
