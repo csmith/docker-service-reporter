@@ -22,33 +22,38 @@ class Monitor:
 
     for event in self._events:
       if event['Action'] == 'start':
-        print('New container %s' % event['id'])
         self._add(self._client.containers(filters={'id': event['id']}))
       elif event['Action'] == 'die':
-        print('Dead container %s' % event['id'])
+        self._remove(event['id'])
       else:
-        print('Unexpected event %s' % event['Action'])
+        print('Monitor.monitor(): unexpected event %s' % event['Action'])
 
 
   def _add(self, infos):
     res = []
     for info in infos:
-      name = info['Names'][0][1:]
       container = {
         'host': self._host,
         'image': info['Image'],
         'labels': info['Labels'],
-        'name': name,
+        'name': info['Names'][0][1:],
         'net': {
           'addr': self._get_addresses(info),
           'ports': self._get_ports(info)
         }
       }
 
-      self._containers[name] = container
+      self._containers[info['Id']] = container
       res.append(container)
 
     self._on_added(res)
+
+
+  def _remove(self, container_id):
+    if container_id in self._containers:
+      container = self._containers[container_id]
+      del self._containers[container_id]
+      self._on_removed([container])
 
 
   def _get_addresses(self, container):
