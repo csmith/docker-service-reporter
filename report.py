@@ -28,6 +28,27 @@ def get_ports(container):
   return ports
 
 
+def add_containers(infos):
+  global containers, label_index, network_index
+  for info in infos:
+    container = {
+      'image': info['Image'],
+      'labels': info['Labels'],
+      'net': {
+        'addr': get_addresses(info),
+        'ports': get_ports(info)
+      }
+    }
+
+    name = info['Names'][0][1:]
+    containers[name] = container
+
+    for k, v in container['labels'].items():
+      label_index[k][name] = v
+    for k, v in container['net']['addr'].items():
+      network_index[k][name] = v
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--name', help='Name of this docker host', default='unknown')
 parser.add_argument('--etcd-port', type=int, help='Port to connect to etcd on', default=2379)
@@ -39,25 +60,13 @@ docker_client = docker.Client(base_url='unix://var/run/docker.sock')
 etcd_client = etcd.Client(host=args.etcd_host, port=args.etcd_port)
 prefix = args.etcd_prefix
 
+event_gen = docker_client.events(decode=True, filters={'type': 'container', 'event': ['die', 'start']})
+
 containers = {}
 label_index = defaultdict(dict) 
 network_index = defaultdict(dict)
 
-for container in docker_client.containers():
-  containers[container['Names'][0][1:]] = {
-    'image': container['Image'],
-    'labels': container['Labels'],
-    'net': {
-      'addr': get_addresses(container),
-      'ports': get_ports(container)
-    }
-  }
-
-for name, details in containers.items():
-  for k, v in details['labels'].items():
-    label_index[k][name] = v
-  for k, v in details['net']['addr'].items():
-    network_index[k][name] = v
+add_containers(docker_client.containers())
 
 try:
   etcd_client.delete(prefix, recursive=True)
@@ -68,6 +77,12 @@ etcd_put(etcd_client, prefix + '/containers', containers)
 etcd_put(etcd_client, prefix + '/labels', label_index)
 etcd_put(etcd_client, prefix + '/networks', network_index)
 
-print(containers)
-print(label_index)
-print(network_index)
+for event in event_gen:
+  if event['Action'] == 'start':
+    print('New container %s' % event['id'])
+    add_containers(docker_client.containers(filters={'id': event['id']}))
+  elif event['Action'] == 'die':
+    print('Dead container %s' % event['id'])
+  else:
+    print('Unexpected event %s' % event['Action'])
+
