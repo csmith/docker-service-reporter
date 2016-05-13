@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
 from collections import defaultdict
+from monitor import Monitor
 import argparse
-import docker 
 import etcd
-import sys
 
 
 def etcd_put(client, prefix, obj):
@@ -17,31 +16,10 @@ def etcd_put(client, prefix, obj):
       client.write(new_prefix, str(value))
 
 
-def get_addresses(container):
-  return {k: v['IPAddress'] for k, v in container['NetworkSettings']['Networks'].items()}
-
-
-def get_ports(container):
-  ports = defaultdict(dict)
-  for port in container['Ports']:
-    ports[port['Type']][port['PrivatePort']] = port['PublicPort'] if 'PublicPort' in port else 0
-  return ports
-
-
-def add_containers(infos):
+def add_containers(new_containers):
   global containers, host_index, label_index, network_index
-  for info in infos:
-    container = {
-      'host': host,
-      'image': info['Image'],
-      'labels': info['Labels'],
-      'net': {
-        'addr': get_addresses(info),
-        'ports': get_ports(info)
-      }
-    }
-
-    name = info['Names'][0][1:]
+  for container in new_containers:
+    name = container['name']
     containers[name] = container
 
     for k, v in container['labels'].items():
@@ -51,8 +29,6 @@ def add_containers(infos):
 
     host_index[host][name] = name
 
-
-def write_all():
   etcd_put(etcd_client, prefix + '/containers', containers)
   etcd_put(etcd_client, prefix + '/labels', label_index)
   etcd_put(etcd_client, prefix + '/networks', network_index)
@@ -66,34 +42,19 @@ parser.add_argument('--etcd-host', help='Host to connect to etcd on', default='e
 parser.add_argument('--etcd-prefix', help='Prefix to use when adding keys to etcd', default='/docker')
 args = parser.parse_args()
 
-docker_client = docker.Client(base_url='unix://var/run/docker.sock')
+monitor = Monitor(args.name, add_containers, lambda x: None) 
 etcd_client = etcd.Client(host=args.etcd_host, port=args.etcd_port)
 prefix = args.etcd_prefix
 host = args.name
-
-event_gen = docker_client.events(decode=True, filters={'type': 'container', 'event': ['die', 'start']})
 
 containers = {}
 label_index = defaultdict(dict) 
 network_index = defaultdict(dict)
 host_index = defaultdict(dict)
 
-add_containers(docker_client.containers())
-
 try:
   etcd_client.delete(prefix, recursive=True)
 except etcd.EtcdKeyNotFound:
   pass
 
-write_all()
-
-for event in event_gen:
-  if event['Action'] == 'start':
-    print('New container %s' % event['id'])
-    add_containers(docker_client.containers(filters={'id': event['id']}))
-    write_all()
-  elif event['Action'] == 'die':
-    print('Dead container %s' % event['id'])
-  else:
-    print('Unexpected event %s' % event['Action'])
-
+monitor.monitor()

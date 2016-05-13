@@ -65,7 +65,7 @@ networks in etcd:
 
 * The docker node is deleted when the script starts, so you can't run multiple
   copies on multiple hosts
-* Containers that are stopped aren't removed 
+* Containers that are stopped aren't removed
 * There's no way to get notified when the script has finished, rather than
   mid-update
 

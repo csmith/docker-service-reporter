@@ -6,5 +6,5 @@ RUN \
     docker-py \
     python-etcd
 
-COPY report.py /report.py
+COPY *.py /
 ENTRYPOINT ["python", "/report.py"]
