@@ -14,6 +14,8 @@ args = parser.parse_args()
 updater = Updater(args.etcd_host, args.etcd_port, args.etcd_prefix)
 monitor = Monitor(args.name, updater.add_containers, updater.remove_containers)
 
+print('Starting updater...', flush=True)
+
 updater.wipe()
 monitor.monitor()
 

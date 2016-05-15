@@ -26,7 +26,7 @@ class Monitor:
       elif event['Action'] == 'die':
         self._remove(event['id'])
       else:
-        print('Monitor.monitor(): unexpected event %s' % event['Action'])
+        print('Monitor.monitor(): unexpected event %s' % event['Action'], flush=True)
 
 
   def _add(self, infos):

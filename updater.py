@@ -39,6 +39,7 @@ class Updater:
   def add_containers(self, new_containers):
     for container in new_containers:
       name = container['name']
+      print('Adding container %s' % name)
       self._write_obj('/containers/%s' % name, container)
       for k, v in container['labels'].items():
         self._write('/labels/%s/%s' % (k, name), v)
@@ -51,6 +52,7 @@ class Updater:
   def remove_containers(self, old_containers):
     for container in old_containers:
       name = container['name']
+      print('Removing container %s' % name)
       self._delete('/containers/%s' % name)
       for k, v in container['labels'].items():
         self._delete('/labels/%s/%s' % (k, name))
@@ -60,5 +62,6 @@ class Updater:
     self._notify_update()
 
   def _notify_update(self):
+    print('Update completed', flush=True)
     self._write('/_updated', time.time())
 
