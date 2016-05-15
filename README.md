@@ -64,10 +64,14 @@ networks in etcd:
                 /{network2}/...
 ```
 
+There is also a special node at `/docker/_updated` which is updated with
+the current unix timestamp after an update has finished. This may be useful
+to watch in scripts that need to trigger after container changes (listening
+to the containers would trigger as soon as the first child node is written,
+so is probably not useful in most situations).
+
 ## Current known issues
 
 * The docker node is deleted when the script starts, so you can't run multiple
   copies on multiple hosts
-* There's no way to get notified when the script has finished, rather than
-  mid-update
 

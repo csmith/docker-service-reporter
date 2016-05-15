@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import etcd
+import time
 
 
 class Updater:
@@ -44,6 +45,7 @@ class Updater:
       for k, v in container['net']['addr'].items():
         self._write('/networks/%s/%s' % (k, name), v)
       self._write('/hosts/%s/%s' % (container['host'], name), name)
+    self._notify_update()
 
 
   def remove_containers(self, old_containers):
@@ -55,4 +57,8 @@ class Updater:
       for k, v in container['net']['addr'].items():
         self._delete('/networks/%s/%s' % (k, name)) 
       self._delete('/hosts/%s/%s' % (container['host'], name))
+    self._notify_update()
+
+  def _notify_update(self):
+    self._write('/_updated', time.time())
 
