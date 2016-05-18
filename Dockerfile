@@ -1,10 +1,9 @@
-FROM python:3.5.1-alpine 
+FROM csmith/service-reporter-lib:latest
 MAINTAINER Chris Smith <chris87@gmail.com> 
 
 RUN \
   pip install \
-    docker-py \
-    python-etcd
+    docker-py
 
 COPY *.py /
 ENTRYPOINT ["python", "/report.py"]
